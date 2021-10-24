@@ -2,29 +2,31 @@ import http from "../http-common";
 export class ProductService {
 
     getProducts() {
-        return http.get('/data').then(res => res.data);
+        return http.get('/products').then(res => res.data);
     }
-    getProduct(id) {
-        return http.get(`/data/${id}`).then(res => res.data);
-    }
+    // getProduct(id) {
+    //     return http.get(`/products/${id}`).then(res => res.data);
+    // }
     deleteProduct(id) {
-        return http.delete(`/data/${id}`).then(res => console.log(res))
+        return http.delete(`/products/${id}`).then(res => console.log(res))
     }
     createProduct(data) {
-        return http.post("/data", data);
+        return http.post("/products", data);
     };
     updateProduct(id, data) {
-        return http.put(`/data/${id}`, data);
+        return http.put(`/products/${id}`, data);
     };
     deleteProductsByIds(ids) {
-
         ids.forEach(d => {
-            if (this.getProduct(d)) {
-                this.deleteProduct(d)
-            }
-        })
-        this.getProducts()
+
+            // this.deleteProduct(ids)
+            http.delete(`/products/${ids}`).then(res => console.log(res))
+
+        });
+
+
     }
+
 }
 
 

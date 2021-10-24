@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import './reportWebVitals'
 import axios from 'axios'
 import { ProductService } from './service/ProductService';
+import FileUploadDemo from './UploadComponent'
 function App() {
   // const [data, setData] = useState(null)
   const [products, setProducts] = useState(null);
@@ -38,7 +39,8 @@ function App() {
   return (
     <React.Fragment>
       <div className="App">
-        <Crud />
+        {/* <Crud /> */}
+        <FileUploadDemo name="demo" url="./upload" auto />
       </div>
     </React.Fragment>
   );

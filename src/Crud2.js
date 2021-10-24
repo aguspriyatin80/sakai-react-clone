@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios'
 import classNames from 'classnames';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -13,8 +14,6 @@ import { InputNumber } from 'primereact/inputnumber';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { ProductService } from './service/ProductService';
-import axios from 'axios'
-
 export const Crud = () => {
 
     let emptyProduct = {
@@ -28,7 +27,6 @@ export const Crud = () => {
         rating: 0,
         inventoryStatus: 'INSTOCK'
     };
-
     const [products, setProducts] = useState(null);
     const [productDialog, setProductDialog] = useState(false);
     const [deleteProductDialog, setDeleteProductDialog] = useState(false);
@@ -42,17 +40,13 @@ export const Crud = () => {
     const productService = new ProductService();
 
 
-
-
-    const refreshData = () => {
-        productService.getProducts().then(data => setProducts(data));
-    }
     useEffect(() => {
-        refreshData()
+        productService.getProducts().then(data => setProducts(data));
+
     }, []);
 
-    const formatCurrency = (value = 0) => {
-        return value.toLocaleString('id-ID', { style: 'currency', currency: 'IDR' });
+    const formatCurrency = (e = 0) => {
+        return e.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
     }
 
     const openNew = () => {
@@ -74,38 +68,59 @@ export const Crud = () => {
         setDeleteProductsDialog(false);
     }
 
-    const createId = () => {
-        let id = '';
-        let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < 9; i++) {
-            id += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        return id;
-    }
-
-    const saveProduct = () => {
+    const saveProduct = (req, res) => {
         setSubmitted(true);
+
         if (product.name.trim()) {
             let _products = [...products];
             let _product = { ...product };
             if (product.id) {
                 const index = findIndexById(product.id);
-
                 _products[index] = _product;
-                productService.updateProduct(product.id, _product)
-                setSelectedProducts(null)
+                productService.updateProduct(product.id, product)
                 toast.current.show({ severity: 'success', summary: 'Successful', detail: 'Product Updated', life: 3000 });
             }
             else {
-                // _product.id = parseInt(_products.pop().id) + 1
-                _product.id = parseInt(_products[_products.length - 1].id) + 1
-                _product.code = createId();
-                _product.image = 'product-placeholder.svg';
-                console.log(_product)
-                _products.push(_product);
+                _product.id = createId();
+                // _product.image = 'product-placeholder.svg';
+                // _product.category = req.body.category;
+                // _product.name = req.body.name;
+                // _product.price = req.body.price;
+                // _product.status = req.body.status;
+                // _product.quantity = req.body.quantity;
+                // _products.push(_product);
+                // productService.createProduct(_products)
+                let data = {
+                    name: product.name,
+                    code: _product.id,
+                    description: product.description,
+                    image: 'product-placeholder.svg',
+                    price: product.price,
+                    category: product.category,
+                    quantity: product.quantity,
+                    rating: 4
+                };
 
-                productService.createProduct(_product)
-                toast.current.show({ severity: 'success', summary: 'Successful', detail: 'Product Created', life: 3000 });
+                productService.createProduct(data)
+                    .then(response => {
+                        setProduct({
+                            id: _product.id,
+                            name: response.data.name,
+                            description: response.data.description,
+                            image: 'product-placeholder.svg',
+                            category: response.data.category,
+                            quantity: product.quantity,
+                            rating: 4
+                        });
+                        setSubmitted(true);
+                        productService.getProducts().then(data => setProducts(data));
+                        toast.current.show({ severity: 'success', summary: 'Successful', detail: 'Product Created', life: 3000 });
+                        console.log(response.data);
+                    })
+                    .catch(e => {
+                        console.log(e);
+                    });
+
             }
 
             setProducts(_products);
@@ -115,24 +130,40 @@ export const Crud = () => {
     }
 
     const editProduct = (product) => {
+        console.log(product)
         setProduct({ ...product });
         setProductDialog(true);
-
     }
 
     const confirmDeleteProduct = (product) => {
         setProduct(product);
         setDeleteProductDialog(true);
-        productService.deleteProduct(product.id)
-        refreshData()
     }
 
     const deleteProduct = () => {
         let _products = products.filter(val => val.id !== product.id);
-        setDeleteProductDialog(false);
-        toast.current.show({ severity: 'success', summary: 'Successful', detail: 'Product Deleted', life: 3000 });
-        setProduct(emptyProduct);
-        setProducts(_products);
+        // setProducts(_products);
+        if (_products) {
+            axios.delete(`http://localhost:3004/api/products/${product.id}`)
+                .then(res => console.log(res))
+
+
+
+            // productService.getProducts().then(data => setProducts(data));            
+            setDeleteProductDialog(false);
+            toast.current.show({ severity: 'success', summary: 'Successful', detail: 'Product Deleted', life: 3000 });
+
+        }
+    }
+    const deleteProductsByIds = () => {
+        let arrayids = []
+        let _products = products.filter(val => selectedProducts.includes(val));
+        _products.forEach(d => {
+            arrayids.push(d.id)
+        })
+        productService.deleteProductsByIds(arrayids)
+        // setProduct(emptyProduct);
+        // productService.getProducts().then(data => setProducts(data));
 
 
     }
@@ -149,6 +180,14 @@ export const Crud = () => {
         return index;
     }
 
+    const createId = () => {
+        let id = '';
+        let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 5; i++) {
+            id += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return id;
+    }
 
     const exportCSV = () => {
         dt.current.exportCSV();
@@ -156,51 +195,15 @@ export const Crud = () => {
 
     const confirmDeleteSelected = () => {
         setDeleteProductsDialog(true);
-        deleteProductsByIds()
-        // productService.deleteProductsByIds()
     }
 
     const deleteSelectedProducts = () => {
-        // console.log('tes')
-        // deleteProductsByIds()
         let _products = products.filter(val => !selectedProducts.includes(val));
         setProducts(_products);
         setDeleteProductsDialog(false);
         setSelectedProducts(null);
         toast.current.show({ severity: 'success', summary: 'Successful', detail: 'Products Deleted', life: 3000 });
     }
-
-    const deleteProductsByIds = () => {
-
-        let _products = products.filter(val => !selectedProducts.includes(val));
-
-        let arrayids = []
-        _products.forEach(d => {
-            arrayids = [d.id];
-            if (d.select) {
-                arrayids.push(d.id);
-            }
-
-        });
-        console.log(arrayids.length)
-        // var i = 0
-        // do {
-        //     axios.delete(`http://localhost:3004/products/${arrayids.toString()}`)
-        // }
-        // while (i < arrayids.length)
-
-
-
-        // for (let i = 0; i < arrayids.length; i++) {
-        //     axios.delete(`http://localhost:3004/products/${ids}`)
-        // }
-
-
-
-
-
-
-    };
 
     const onCategoryChange = (e) => {
         let _product = { ...product };
@@ -229,7 +232,10 @@ export const Crud = () => {
             <React.Fragment>
                 <div className="my-2">
                     <Button label="New" icon="pi pi-plus" className="mr-2 p-button-success" onClick={openNew} />
-                    <Button label="Delete" icon="pi pi-trash" className="p-button-danger" onClick={confirmDeleteSelected} disabled={!selectedProducts || !selectedProducts.length} />
+                    {/* <Button label="Delete" icon="pi pi-trash" className="p-button-danger" onClick={confirmDeleteSelected} disabled={!selectedProducts || !selectedProducts.length} /> */}
+                    <Button label="Delete" icon="pi pi-trash" className="p-button-danger"
+                        onClick={deleteProduct}
+                        disabled={!selectedProducts || !selectedProducts.length} />
                 </div>
             </React.Fragment>
         )
@@ -299,10 +305,18 @@ export const Crud = () => {
     }
 
     const statusBodyTemplate = (rowData) => {
+
         return (
             <>
                 <span className="p-column-title">Status</span>
-                <span className={`product-badge status-${rowData.inventoryStatus}`}>{rowData.inventoryStatus}</span>
+                {
+
+
+                    < span className={`product-badge status-${rowData.inventoryStatus}`}>{rowData.inventoryStatus}</span>
+
+
+                }
+
             </>
         )
     }
@@ -342,8 +356,12 @@ export const Crud = () => {
         <>
             <Button label="No" icon="pi pi-times" className="p-button-text" onClick={hideDeleteProductsDialog} />
             <Button label="Yes" icon="pi pi-check" className="p-button-text" onClick={deleteSelectedProducts} />
+
         </>
     );
+    const onIndexTemplate = (data, props) => {
+        return props.rowIndex + 1
+    }
 
     return (
         <div className="grid crud-demo">
@@ -352,18 +370,17 @@ export const Crud = () => {
                     <Toast ref={toast} />
                     <Toolbar className="mb-4" left={leftToolbarTemplate} right={rightToolbarTemplate}></Toolbar>
 
-                    <DataTable ref={dt} value={products}
-                        selection={selectedProducts}
-                        onSelectionChange={(e) => {
-                            console.log(e.value)
-                            setSelectedProducts(e.value)
-                        }}
-
+                    <DataTable ref={dt} value={products} selection={selectedProducts}
+                        onSelectionChange={(e) =>
+                            // console.log(e.value)
+                            setSelectedProducts(e.value[0])
+                        }
                         dataKey="id" paginator rows={10} rowsPerPageOptions={[5, 10, 25]} className="datatable-responsive"
                         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                         currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
                         globalFilter={globalFilter} emptyMessage="No products found." header={header}>
-                        <Column selectionMode="multiple" globalSelectionPageOnly={true} headerStyle={{ width: '3rem' }}></Column>
+                        <Column field="Index" header="#" body={onIndexTemplate} headerStyle={{ width: '3rem' }} style={{ fontWeight: 'bold' }}></Column>
+                        <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}>{onIndexTemplate}</Column>
                         <Column field="code" header="Code" sortable body={codeBodyTemplate}></Column>
                         <Column field="name" header="Name" sortable body={nameBodyTemplate}></Column>
                         <Column header="Image" body={imageBodyTemplate}></Column>
@@ -376,6 +393,7 @@ export const Crud = () => {
 
                     <Dialog visible={productDialog} style={{ width: '450px' }} header="Product Details" modal className="p-fluid" footer={productDialogFooter} onHide={hideDialog}>
                         {product.image && <img src={`assets/demo/images/product/${product.image}`} alt={product.image} width="150" className="block mx-auto mt-0 mb-5 shadow-2" />}
+
                         <div className="field">
                             <label htmlFor="name">Name</label>
                             <InputText id="name" value={product.name} onChange={(e) => onInputChange(e, 'name')} required autoFocus className={classNames({ 'p-invalid': submitted && !product.name })} />
@@ -411,7 +429,7 @@ export const Crud = () => {
                         <div className="grid formgrid">
                             <div className="field col">
                                 <label htmlFor="price">Price</label>
-                                <InputNumber id="price" value={product.price} onValueChange={(e) => onInputNumberChange(e, 'price')} mode="currency" currency="IDR" locale="id-ID" />
+                                <InputNumber id="price" value={product.price} onValueChange={(e) => onInputNumberChange(e, 'price')} mode="currency" currency="USD" locale="en-US" />
                             </div>
                             <div className="field col">
                                 <label htmlFor="quantity">Quantity</label>
